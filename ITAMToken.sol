@@ -345,7 +345,7 @@ contract ITAMToken is ERC20Capped {
     event WithdrawEther(address indexed _to, uint256 amount);
     event PurchaseItemOnEther(address indexed _spender, uint64 appId, uint64 itemId, uint256 amount);
     event PurchaseItemOnITAM(address indexed _spender, uint64 appId, uint64 itemId, uint256 amount);
-    event PurchaseItemOnERC20(address indexed _spender, uint64 appId, uint64 itemId, uint256 amount);
+    event PurchaseItemOnERC20(address indexed _spender, address indexed _tokenAddress, uint64 appId, uint64 itemId, uint256 amount);
     event SetItem(uint64 appId, uint64 itemId, address indexed tokenAddress, uint256 value);
     event DeleteItem(uint64 appId, uint64 itemId, address indexed tokenAddress);
 
@@ -504,7 +504,7 @@ contract ITAMToken is ERC20Capped {
         erc20 = ERC20(tokenAddress);
         require(erc20.transferFrom(msg.sender, inAppAddress, itemAmount), "failed transferFrom");
 
-        emit PurchaseItemOnERC20(msg.sender, appId, itemId, itemAmount);
+        emit PurchaseItemOnERC20(msg.sender, tokenAddress, appId, itemId, itemAmount);
         return true;
     }
 

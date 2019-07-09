@@ -271,7 +271,7 @@ contract ERC20Capped is ERC20 {
 
 // File: contracts/ITAMToken.sol
 
-pragma solidity ^0.5.8;
+pragma solidity ^0.5.2;
 
 
 

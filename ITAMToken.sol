@@ -353,7 +353,7 @@ contract ITAMToken is ERC20Capped {
     }
 
     modifier onlyOwner {
-        msg.sender == owner;
+        require(msg.sender == owner);
         _;
     }
 

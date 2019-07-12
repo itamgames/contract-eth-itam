@@ -341,7 +341,6 @@ contract ITAMToken is ERC20Capped {
     mapping(uint64 => mapping(uint64 => mapping(address => uint256))) items;
 
     event Unlock(uint8 unlockCount);
-    event DepositEther(address indexed _sender, uint256 amount);
     event WithdrawEther(address indexed _to, uint256 amount);
     event PurchaseItemOnEther(address indexed _spender, uint64 appId, uint64 itemId, uint256 amount);
     event PurchaseItemOnITAM(address indexed _spender, uint64 appId, uint64 itemId, uint256 amount);
@@ -457,11 +456,6 @@ contract ITAMToken is ERC20Capped {
     modifier onlyNotBlackList {
         require(blackLists[msg.sender] == false, "sender cannot call this contract");
         _;
-    }
-
-    // can accept ether
-    function() external payable {
-        emit DepositEther(msg.sender, msg.value);
     }
 
     function withdrawEther(uint256 amount) public onlyOwner {

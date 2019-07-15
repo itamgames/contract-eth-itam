@@ -283,6 +283,7 @@ contract ITAMToken is ERC20Capped {
     uint256 constant TOTAL_CAP = 2500000000 ether;
 
     address public owner;
+    address public gameMaster;
     mapping(address => bool) public blackLists;
 
     struct DiscountInfo {
@@ -294,7 +295,6 @@ contract ITAMToken is ERC20Capped {
     DiscountInfo[] public discountInfos;
 
     uint8 public unlockCount = 0;
-    address payable public etherAddress;
     address public strategicSaleAddress;
     uint[] public strategicSaleReleaseCaps = [15000000 ether, 15000000 ether, 15000000 ether, 
                                               15000000 ether, 15000000 ether, 15000000 ether,
@@ -305,7 +305,7 @@ contract ITAMToken is ERC20Capped {
                                             97500000 ether, 130000000 ether, 130000000 ether];
 
     address public publicSaleAddress;
-    uint[] public publicSaleReleaseCaps = [200000000 ether];
+    uint public publicSaleReleaseCap = 200000000 ether;
 
     address public teamAddress;
     uint[] public teamReleaseCaps = [0, 0, 0, 0, 0, 0,
@@ -333,7 +333,7 @@ contract ITAMToken is ERC20Capped {
                                     50000000 ether, 50000000 ether, 50000000 ether,
                                     50000000 ether, 50000000 ether, 50000000 ether,
                                     50000000 ether, 50000000 ether, 50000000 ether];
-    address public inAppAddress;
+    address payable public inAppAddress;
 
     ERC20 erc20;
 
@@ -346,15 +346,33 @@ contract ITAMToken is ERC20Capped {
     event PurchaseItemOnITAM(address indexed _spender, uint64 appId, uint64 itemId, uint256 amount);
     event PurchaseItemOnERC20(address indexed _spender, address indexed _tokenAddress, uint64 appId, uint64 itemId, uint256 amount);
     event SetItem(uint64 appId, uint64 itemId, address indexed tokenAddress, uint256 value);
-    event DeleteItem(uint64 appId, uint64 itemId, address indexed tokenAddress);
 
-    constructor(address _owner) public ERC20Capped(TOTAL_CAP) {
+    constructor(address _owner, address _gameMaster, address _strategicSaleAddress, address _privateSaleAddress, address _publicSaleAddress, address _teamAddress, address _advisorAddress, address _marketingAddress, address _ecoAddress,
+                address payable _inAppAddress) public ERC20Capped(TOTAL_CAP) {
         owner = _owner;
+        gameMaster = _gameMaster;
+        strategicSaleAddress = _strategicSaleAddress;
+        privateSaleAddress = _privateSaleAddress;
+        publicSaleAddress = _publicSaleAddress;
+        teamAddress = _teamAddress;
+        advisorAddress = _advisorAddress;
+        marketingAddress = _marketingAddress;
+        ecoAddress = _ecoAddress;
+        inAppAddress = _inAppAddress;
     }
 
     modifier onlyOwner {
         require(msg.sender == owner);
         _;
+    }
+    
+    modifier onlyGameMaster {
+        require(msg.sender == gameMaster);
+        _;
+    }
+    
+    function setGameMaster(address _gameMaster) public onlyOwner {
+        gameMaster = _gameMaster;
     }
 
     function transfer(address _to, uint256 _value) public onlyNotBlackList returns (bool)  {
@@ -384,8 +402,8 @@ contract ITAMToken is ERC20Capped {
             super._mint(privateSaleAddress, privateSaleReleaseCaps[_unlockCount]);
         }
 
-        if(publicSaleReleaseCaps.length > _unlockCount) {
-            super._mint(publicSaleAddress, publicSaleReleaseCaps[_unlockCount]);
+        if(_unlockCount == 0) {
+            super._mint(publicSaleAddress, publicSaleReleaseCap);
         }
 
         if(teamReleaseCaps.length > _unlockCount) {
@@ -409,83 +427,61 @@ contract ITAMToken is ERC20Capped {
     }
 
     function setAddresses(address _strategicSaleAddress, address _privateSaleAddress, address _publicSaleAddress, address _teamAddress, address _advisorAddress, address _marketingAddress, address _ecoAddress,
-                          address payable _etherAddress, address _inAppAddress) public onlyOwner {
-        address zeroAddress = address(0);
-        if(_strategicSaleAddress != zeroAddress) {
-            strategicSaleAddress = _strategicSaleAddress;
-        }
-        
-        if(_privateSaleAddress != zeroAddress) {
-            privateSaleAddress = _privateSaleAddress;
-        }
-
-        if(_publicSaleAddress != zeroAddress) {
-            publicSaleAddress = _publicSaleAddress;
-        }
-
-        if(_teamAddress != zeroAddress) {
-            teamAddress = _teamAddress;
-        }
-
-        if(_advisorAddress != zeroAddress) {
-            advisorAddress = _advisorAddress;
-        }
-
-        if(_marketingAddress != zeroAddress) {
-            marketingAddress = _marketingAddress;
-        }
-
-        if(_ecoAddress != zeroAddress) {
-            ecoAddress = _ecoAddress;
-        }
-
-        if(_etherAddress != zeroAddress) {
-            etherAddress = _etherAddress;
-        }
-
-        if(_inAppAddress != zeroAddress) {
-            inAppAddress = _inAppAddress;
-        }
+                          address payable _inAppAddress) public onlyOwner {
+        strategicSaleAddress = _strategicSaleAddress;
+        privateSaleAddress = _privateSaleAddress;
+        publicSaleAddress = _publicSaleAddress;
+        teamAddress = _teamAddress;
+        advisorAddress = _advisorAddress;
+        marketingAddress = _marketingAddress;
+        ecoAddress = _ecoAddress;
+        inAppAddress = _inAppAddress;
     }
     
-    function setBlackList(address _to, bool black) public onlyOwner
-    {
-        blackLists[_to] = black;
+    function addToBlackList(address _to) public onlyOwner {
+        require(!blackLists[_to], "already blacklist");
+        blackLists[_to] = true;
+    }
+    
+    function removeFromBlackList(address _to) public onlyOwner {
+        require(blackLists[_to], "cannot found this address from blacklist");
+        blackLists[_to] = false;
     }
 
     modifier onlyNotBlackList {
-        require(blackLists[msg.sender] == false, "sender cannot call this contract");
+        require(!blackLists[msg.sender], "sender cannot call this contract");
         _;
+    }
+    
+    // can accept ether
+    function() payable external {
+        
     }
 
     function withdrawEther(uint256 amount) public onlyOwner {
-        etherAddress.transfer(amount);
-        emit WithdrawEther(etherAddress, amount);
+        inAppAddress.transfer(amount);
+        emit WithdrawEther(inAppAddress, amount);
     }
 
-    function createOrUpdateItem(uint64 appId, uint64[] memory itemIds, address[] memory tokenAddresses, uint256[] memory values) public onlyOwner returns(bool) {
+    function createOrUpdateItem(uint64 appId, uint64[] memory itemIds, address[] memory tokenAddresses, uint256[] memory values) public onlyGameMaster returns(bool) {
         uint itemLength = itemIds.length;
-        require(itemLength == tokenAddresses.length && tokenAddresses.length == values.length, "different size of item info");
+        require(itemLength == tokenAddresses.length && tokenAddresses.length == values.length);
         
+        uint64 itemId;
+        address tokenAddress;
+        uint256 value;
         for(uint16 i = 0; i < itemLength; i++) {
-            uint64 itemId = itemIds[i];
-            address tokenAddress = tokenAddresses[i];
-            uint256 value = values[i];
+            itemId = itemIds[i];
+            tokenAddress = tokenAddresses[i];
+            value = values[i];
 
             items[appId][itemId][tokenAddress] = value;
             emit SetItem(appId, itemId, tokenAddress, value);
         }
+        
+        return true;
     }
-
-    function deleteItems(uint64 appId, uint64 itemId, address[] memory tokenAddresses) public onlyOwner returns(bool) {
-        for(uint16 i = 0; i < tokenAddresses.length; i++) {
-            address tokenAddress = tokenAddresses[i];
-
-            delete items[appId][itemId][tokenAddress];
-            emit DeleteItem(appId, itemId, tokenAddress);
-        }
-    }
-
+    
     function _getItemAmount(uint64 appId, uint64 itemId, address tokenAddress) private view returns(uint256) {
         uint256 itemAmount = items[appId][itemId][tokenAddress];
         require(itemAmount > 0, "invalid item id");
@@ -502,7 +498,7 @@ contract ITAMToken is ERC20Capped {
         return true;
     }
 
-    function purchaseItemOnITAM(uint64 appId, uint64 itemId) external returns(bool) {
+    function purchaseItemOnITAM(uint64 appId, uint64 itemId) external onlyNotBlackList returns(bool) {
         uint256 itemAmount = _getItemAmount(appId, itemId, address(this));
 
         while(discountInfos.length > 0) {
@@ -534,20 +530,24 @@ contract ITAMToken is ERC20Capped {
     }
 
     // startTimes, endTimes should be in slow order
-    function resetPurchaseInAppDiscountInfo(uint[] memory startTimes, uint[] memory endTimes, uint8[] memory percents) public onlyOwner returns(bool) {
+    function resetPurchaseInAppDiscountInfo(uint[] memory startTimes, uint[] memory endTimes, uint8[] memory percents) public onlyGameMaster returns(bool) {
         require(startTimes.length == endTimes.length && endTimes.length == percents.length);
         discountInfos.length = 0;
         
         uint prevStartTime = 2 ** 256 - 1;
         uint prevEndTime = prevStartTime;
+        uint startTime;
+        uint endTime;
+        uint8 percent;
         for(uint8 i = 0; i < startTimes.length; i++) {
-            uint startTime = startTimes[i];
-            uint endTime = endTimes[i];
-            uint8 percent = percents[i];
+            startTime = startTimes[i];
+            endTime = endTimes[i];
+            percent = percents[i];
             
-            require(prevStartTime > startTime);
-            require(prevEndTime > endTime);
-            require(0 < percent && percent <= 100);
+            require(prevStartTime > startTime, "prevStartTime should be bigger than current start time");
+            require(prevEndTime > endTime, "prevEndTime should be bigger than current end time");
+            require(startTime < endTime, "endTime should be bigger than startTime");
+            require(0 < percent && percent <= 100, "invalid percent");
             
             discountInfos.push(DiscountInfo(startTime, endTime, percent));
             

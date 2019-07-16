@@ -345,7 +345,7 @@ contract ITAMToken is ERC20Capped {
     event PurchaseItemOnEther(address indexed _spender, uint64 appId, uint64 itemId, uint256 amount);
     event PurchaseItemOnITAM(address indexed _spender, uint64 appId, uint64 itemId, uint256 amount);
     event PurchaseItemOnERC20(address indexed _spender, address indexed _tokenAddress, uint64 appId, uint64 itemId, uint256 amount);
-    event SetItem(uint64 appId, uint64 itemId, address indexed tokenAddress, uint256 value);
+    event SetItem(uint64 appId);
 
     constructor(address _owner, address _gameMaster, address _strategicSaleAddress, address _privateSaleAddress, address _publicSaleAddress, address _teamAddress, address _advisorAddress, address _marketingAddress, address _ecoAddress,
                 address payable _inAppAddress) public ERC20Capped(TOTAL_CAP) {
@@ -476,9 +476,9 @@ contract ITAMToken is ERC20Capped {
             value = values[i];
 
             items[appId][itemId][tokenAddress] = value;
-            emit SetItem(appId, itemId, tokenAddress, value);
         }
         
+        emit SetItem(appId);
         return true;
     }
     

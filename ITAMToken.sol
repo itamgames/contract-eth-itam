@@ -282,17 +282,14 @@ contract ITAMToken is ERC20Capped {
     uint8 public decimals = 18;
     uint256 constant TOTAL_CAP = 2500000000 ether;
 
+    address public firstMaster;
+    address public secondMaster;
+    address public thirdMaster;
+    mapping(address => mapping(address => bool)) public decidedOwner;
+    
     address public owner;
     address public gameMaster;
     mapping(address => bool) public blackLists;
-
-    struct DiscountInfo {
-        uint startTime;
-        uint endTime;
-        uint8 percent;
-    }
-
-    DiscountInfo[] public discountInfos;
 
     uint8 public unlockCount = 0;
     address public strategicSaleAddress;
@@ -346,9 +343,15 @@ contract ITAMToken is ERC20Capped {
     event PurchaseItemOnITAM(address indexed _spender, uint64 appId, uint64 itemId, uint256 amount);
     event PurchaseItemOnERC20(address indexed _spender, address indexed _tokenAddress, uint64 appId, uint64 itemId, uint256 amount);
     event SetItem(uint64 appId);
+    event ChangeOwner(address _owner);
 
-    constructor(address _owner, address _gameMaster, address _strategicSaleAddress, address _privateSaleAddress, address _publicSaleAddress, address _teamAddress, address _advisorAddress, address _marketingAddress, address _ecoAddress,
-                address payable _inAppAddress) public ERC20Capped(TOTAL_CAP) {
+    constructor(address _firstMaster, address _secondMaster, address _thirdMaster,
+                address _owner, address _gameMaster, address _strategicSaleAddress,
+                address _privateSaleAddress, address _publicSaleAddress, address _teamAddress,
+                address _advisorAddress, address _marketingAddress, address _ecoAddress, address payable _inAppAddress) public ERC20Capped(TOTAL_CAP) {
+        firstMaster = _firstMaster;
+        secondMaster = _secondMaster;
+        thirdMaster = _thirdMaster;
         owner = _owner;
         gameMaster = _gameMaster;
         strategicSaleAddress = _strategicSaleAddress;
@@ -368,6 +371,11 @@ contract ITAMToken is ERC20Capped {
     
     modifier onlyGameMaster {
         require(msg.sender == gameMaster);
+        _;
+    }
+    
+    modifier onlyMaster {
+        require(msg.sender == firstMaster || msg.sender == secondMaster || msg.sender == thirdMaster);
         _;
     }
     
@@ -438,6 +446,26 @@ contract ITAMToken is ERC20Capped {
         inAppAddress = _inAppAddress;
     }
     
+    function changeOwner(address _owner) public onlyMaster {
+        decidedOwner[msg.sender][_owner] = true;
+        
+        uint16 decidedCount = 0;
+        if (decidedOwner[firstMaster][_owner] == true) {
+            decidedCount += 1;
+        }
+        if (decidedOwner[secondMaster][_owner] == true)  {
+            decidedCount += 1;
+        }
+        if (decidedOwner[thirdMaster][_owner] == true) {
+            decidedCount += 1;
+        }
+        
+        if (decidedCount >= 2) {
+            owner = _owner;
+            emit ChangeOwner(_owner);
+        }
+    }
+    
     function addToBlackList(address _to) public onlyOwner {
         require(!blackLists[_to], "already blacklist");
         blackLists[_to] = true;
@@ -501,20 +529,6 @@ contract ITAMToken is ERC20Capped {
     function purchaseItemOnITAM(uint64 appId, uint64 itemId) external onlyNotBlackList returns(bool) {
         uint256 itemAmount = _getItemAmount(appId, itemId, address(this));
 
-        while(discountInfos.length > 0) {
-            DiscountInfo memory discountInfo = discountInfos[discountInfos.length - 1];
-            if(discountInfo.startTime <= now) {
-                if(now <= discountInfo.endTime) {
-                    itemAmount = itemAmount.sub(itemAmount.mul(discountInfo.percent).div(100));
-                    break;
-                }
-                discountInfos.length--;
-            }
-            else {
-                break;
-            }
-        }
-
         transfer(inAppAddress, itemAmount);
         
         emit PurchaseItemOnITAM(msg.sender, appId, itemId, itemAmount);
@@ -526,35 +540,6 @@ contract ITAMToken is ERC20Capped {
         require(itemAmount == msg.value, "wrong quantity");
         
         emit PurchaseItemOnEther(msg.sender, appId, itemId, msg.value);
-        return true;
-    }
-
-    // startTimes, endTimes should be in slow order
-    function resetPurchaseInAppDiscountInfo(uint[] memory startTimes, uint[] memory endTimes, uint8[] memory percents) public onlyGameMaster returns(bool) {
-        require(startTimes.length == endTimes.length && endTimes.length == percents.length);
-        discountInfos.length = 0;
-        
-        uint prevStartTime = 2 ** 256 - 1;
-        uint prevEndTime = prevStartTime;
-        uint startTime;
-        uint endTime;
-        uint8 percent;
-        for(uint8 i = 0; i < startTimes.length; i++) {
-            startTime = startTimes[i];
-            endTime = endTimes[i];
-            percent = percents[i];
-            
-            require(prevStartTime > startTime, "prevStartTime should be bigger than current start time");
-            require(prevEndTime > endTime, "prevEndTime should be bigger than current end time");
-            require(startTime < endTime, "endTime should be bigger than startTime");
-            require(0 < percent && percent <= 100, "invalid percent");
-            
-            discountInfos.push(DiscountInfo(startTime, endTime, percent));
-            
-            prevStartTime = startTime;
-            prevEndTime = endTime;
-        }
-
         return true;
     }
 }
